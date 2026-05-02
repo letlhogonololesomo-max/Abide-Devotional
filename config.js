@@ -12,8 +12,8 @@
 
 window.ABIDE_CONFIG = {
   // From Supabase: Settings → API
-  SUPABASE_URL:      'https://YOUR-PROJECT.supabase.co',
-  SUPABASE_ANON_KEY: 'YOUR-ANON-KEY-HERE',
+  SUPABASE_URL:      'https://pxrkhxvjqwfmjhuohigh.supabase.co',
+  SUPABASE_ANON_KEY: 'BE3Ool1IqzCVBZK3RS5nw_aVlRft4X',
 
   // From OneSignal: Settings → Keys & IDs (set this when you add OneSignal)
   // Leave as null until then; the app will skip notification setup.
