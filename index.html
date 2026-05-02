@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#f7f3ec">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Abide">
+<title>Abide</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- TOPBAR -->
+  <div class="topbar" id="topbar">
+    <div class="greeting"><strong id="greetText">Peace be with you</strong></div>
+    <div class="date" id="dateText"></div>
+  </div>
+
+  <!-- TODAY -->
+  <div class="screen active" id="screen-today">
+    <div class="verse-card">
+      <div class="verse-label">Today's Anchor</div>
+      <div class="verse-text" id="anchorVerse">Abide in me, and I in you.</div>
+      <div class="verse-ref" id="anchorRef">— John 15:4</div>
+    </div>
+
+    <button class="begin-btn" onclick="App.openMethodPicker()">
+      Begin Devotion <span class="arrow">→</span>
+    </button>
+
+    <div class="walk-strip">
+      <div class="walk-tile">
+        <div class="label">Current Walk</div>
+        <div class="value" id="streakValue">0<small>days</small></div>
+      </div>
+      <div class="walk-tile">
+        <div class="label">Words Heard</div>
+        <div class="value" id="entriesValue">0<small>entries</small></div>
+      </div>
+    </div>
+
+    <div class="identity" id="identityBlock">
+      <div class="text" id="identityText">You are beginning a journey of listening.</div>
+    </div>
+
+    <div class="next-prayer" id="nextPrayer" style="display:none;">
+      <div class="info">Next prayer: <strong id="nextPrayerName">Morning</strong></div>
+      <div class="time" id="nextPrayerTime">06:30</div>
+    </div>
+
+    <div class="sync-state" id="syncState"></div>
+  </div>
+
+  <!-- JOURNAL -->
+  <div class="screen" id="screen-journal">
+    <h2 class="section-title">Journal</h2>
+    <p class="section-sub">What the Lord has spoken</p>
+    <div id="journalList"></div>
+  </div>
+
+  <!-- PRAYER -->
+  <div class="screen" id="screen-prayer">
+    <h2 class="section-title">Fixed Hours</h2>
+    <p class="section-sub">Anchor your day in prayer</p>
+    <div id="prayerList"></div>
+    <div class="notification-status" id="notificationStatus"></div>
+  </div>
+
+  <!-- WALK -->
+  <div class="screen" id="screen-walk">
+    <h2 class="section-title">The Walk</h2>
+    <p class="section-sub">Formation, not achievement</p>
+
+    <div class="walk-strip" style="margin-top: 4px;">
+      <div class="walk-tile">
+        <div class="label">Streak</div>
+        <div class="value" id="walkStreak">0<small>days</small></div>
+      </div>
+      <div class="walk-tile">
+        <div class="label">Grace Days</div>
+        <div class="value" id="walkGrace">2<small>left</small></div>
+      </div>
+    </div>
+
+    <div class="identity" style="margin-top: 18px;">
+      <div class="text" id="walkIdentity">Your walk is just beginning. Show up tomorrow.</div>
+    </div>
+
+    <h3 class="subhead">Translation</h3>
+    <div class="translation-picker" id="translationPicker"></div>
+
+    <h3 class="subhead">Milestones</h3>
+    <div class="milestone-list" id="milestoneList"></div>
+
+    <h3 class="subhead">Device</h3>
+    <div class="device-info" id="deviceInfo"></div>
+  </div>
+
+  <!-- SESSION -->
+  <div class="screen" id="screen-session" style="padding: 0;">
+    <div class="session-header">
+      <button class="session-close" onclick="App.exitSession()">✕</button>
+      <div class="progress-dots" id="progressDots"></div>
+      <div class="session-step-label" id="stepLabel">STILLNESS</div>
+    </div>
+    <div class="session-body" id="sessionBody"></div>
+    <div class="session-footer" id="sessionFooter"></div>
+  </div>
+
+</div>
+
+<!-- TABBAR -->
+<nav class="tabbar" id="tabbar">
+  <button class="tab active" data-screen="today">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 2L3 9v12h6v-7h6v7h6V9z"/></svg>
+    Today
+  </button>
+  <button class="tab" data-screen="journal">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4h12a2 2 0 012 2v14l-4-3-4 3-4-3-2 1V4z"/></svg>
+    Journal
+  </button>
+  <button class="tab" data-screen="prayer">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg>
+    Prayer
+  </button>
+  <button class="tab" data-screen="walk">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M21 7v6h-6"/></svg>
+    Walk
+  </button>
+</nav>
+
+<!-- METHOD PICKER MODAL -->
+<div class="modal-overlay" id="methodModal" onclick="if(event.target===this) App.closeMethodPicker()">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Choose your meditation</div>
+    <div class="modal-sub">Same skeleton, different depths</div>
+    <button class="method-option" onclick="App.startSession('lectio')">
+      <div class="name">Lectio Divina</div>
+      <div class="desc">Read, meditate, pray, contemplate. Four passes through the same passage.</div>
+      <div class="meta">~12 min</div>
+    </button>
+    <button class="method-option" onclick="App.startSession('soap')">
+      <div class="name">SOAP</div>
+      <div class="desc">Scripture, Observation, Application, Prayer. Structured and practical.</div>
+      <div class="meta">~10 min</div>
+    </button>
+    <button class="method-option" onclick="App.startSession('plan')">
+      <div class="name">Reading Plan</div>
+      <div class="desc">Today's chapter with one reflection prompt.</div>
+      <div class="meta">~8 min</div>
+    </button>
+    <button class="method-option" onclick="App.startSession('free')">
+      <div class="name">Free</div>
+      <div class="desc">Just the passage and a blank page. When the Spirit leads.</div>
+      <div class="meta">~5 min</div>
+    </button>
+  </div>
+</div>
+
+<!-- REWARD POPUP -->
+<div class="reward-popup" id="rewardPopup">
+  <div class="reward-content">
+    <div class="symbol" id="rewardSymbol">✦</div>
+    <div class="title" id="rewardTitle">Day 7 — Completion</div>
+    <div class="verse" id="rewardVerse">"On the seventh day God rested from all His work."</div>
+    <div class="ref" id="rewardRef">— Genesis 2:2</div>
+    <button class="reward-close" onclick="App.closeReward()">Continue</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- Scripts -->
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js').catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>
