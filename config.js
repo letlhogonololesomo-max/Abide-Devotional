@@ -24,5 +24,5 @@ window.ABIDE_CONFIG = {
 
   // Available translations (must match what your API.Bible plan covers
   // and what your Edge Function knows about)
-  TRANSLATIONS: ['NIV', 'ESV', 'MSG'],
+  TRANSLATIONS: ['NIV', 'MSG', 'CSB'],
 };
