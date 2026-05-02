@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Supabase local
+.branches
+.temp
+supabase/.branches/
+supabase/.temp/
+
+# Local env (never commit secrets)
+.env
+.env.local
+*.env
+
+# Logs
+*.log
+npm-debug.log*
