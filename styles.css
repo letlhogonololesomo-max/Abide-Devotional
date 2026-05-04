@@ -680,7 +680,10 @@ textarea.manual-passage { min-height: 180px; font-size: 17px; line-height: 1.55;
   padding: 16px 18px;
   margin-bottom: 10px;
   cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.1s ease;
 }
+.journal-entry:active { transform: scale(0.99); }
+.journal-entry:hover { border-color: var(--ink-soft); }
 .journal-entry .meta {
   display: flex;
   justify-content: space-between;
@@ -706,6 +709,72 @@ textarea.manual-passage { min-height: 180px; font-size: 17px; line-height: 1.55;
   color: var(--accent);
   letter-spacing: 0.02em;
 }
+
+/* ENTRY DETAIL */
+.entry-detail-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.entry-date {
+  font-size: 12px;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+.entry-ref {
+  margin-top: 4px;
+  font-size: 22px;
+}
+.entry-linked {
+  margin: 12px 0 4px;
+  padding: 10px 14px;
+  background: var(--accent-soft);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--accent);
+}
+.entry-linked strong { font-family: var(--serif); font-size: 14px; }
+
+.entry-passage {
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--bg-elevated);
+  padding: 18px 20px;
+  border-radius: var(--radius);
+  border-left: 3px solid var(--accent);
+  margin: 14px 0 18px;
+  white-space: pre-wrap;
+}
+
+.entry-fields { margin-top: 6px; }
+.entry-field {
+  background: var(--bg-elevated);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  margin-bottom: 8px;
+}
+.entry-field-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-faint);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+.entry-field-value {
+  font-family: var(--serif);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink);
+  white-space: pre-wrap;
+}
+
+#screen-entry-detail .btn { width: 100%; }
+#screen-entry-detail .btn.danger { color: #b85a5a; border-color: #e8d4d4; }
 
 .empty-state { text-align: center; padding: 50px 30px; color: var(--ink-faint); }
 .empty-state .icon { font-size: 32px; margin-bottom: 12px; opacity: 0.4; color: var(--accent); font-family: var(--serif); }
