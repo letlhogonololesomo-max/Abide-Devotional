@@ -1414,6 +1414,83 @@ function closeReward() {
 // =====================================================================
 // Journal
 // =====================================================================
+function viewEntry(id) {
+  const e = state.entries.find(x => x.id === id);
+  if (!e) return;
+  const linked = e.linkedVerseId ? state.verses.find(v => v.id === e.linkedVerseId) : null;
+
+  // Field-name labels — methods use different field IDs but we want
+  // human-readable headings in the detail view.
+  const fieldLabels = {
+    'field-listening':   'Listening',
+    'field-prayer':      'Prayer',
+    'field-observation': 'Observation',
+    'field-application': 'Application',
+    'field-carry':       'Carry'
+  };
+
+  const fields = e.fields || {};
+  // Render in a deliberate order: Listening/Observation/Application first,
+  // then Prayer, then Carry at the end.
+  const order = ['field-listening','field-observation','field-application','field-prayer','field-carry'];
+  const filledFields = order
+    .filter(k => (fields[k] || '').trim())
+    .map(k => ({ label: fieldLabels[k] || k, value: fields[k] }));
+
+  const fieldsHtml = filledFields.length
+    ? filledFields.map(f => `
+        <div class="entry-field">
+          <div class="entry-field-label">${escapeHtml(f.label)}</div>
+          <div class="entry-field-value">${escapeHtml(f.value)}</div>
+        </div>
+      `).join('')
+    : `<div class="entry-field"><div class="entry-field-value" style="font-style:italic;color:var(--ink-faint);">No reflection text saved for this entry.</div></div>`;
+
+  const passageHtml = e.passageText
+    ? `<div class="entry-passage">${escapeHtml(e.passageText)}</div>`
+    : '';
+
+  const linkedHtml = linked
+    ? `<div class="entry-linked">∞ Linked to memorisation: <strong>${escapeHtml(linked.reference)}</strong></div>`
+    : '';
+
+  document.getElementById('entryDetailBody').innerHTML = `
+    <div class="entry-detail-meta">
+      <span class="entry-date">${formatLongDate(e.date)}</span>
+      <span class="method-tag">${escapeHtml(e.method)}</span>
+    </div>
+    <h2 class="section-title entry-ref">${escapeHtml(e.passageRef || 'Free reflection')}</h2>
+    ${e.translation ? `<p class="section-sub">${escapeHtml(e.translation)}</p>` : ''}
+    ${linkedHtml}
+    ${passageHtml}
+    <div class="entry-fields">${fieldsHtml}</div>
+
+    <h3 class="subhead">Actions</h3>
+    <button class="btn btn-secondary danger" onclick="App.deleteEntry('${e.id}')">Delete entry</button>
+  `;
+  switchTo('entry-detail');
+}
+
+async function deleteEntry(id) {
+  if (!confirm('Delete this entry? This cannot be undone.')) return;
+  state.entries = state.entries.filter(e => e.id !== id);
+  saveLocal();
+  if (supabase) {
+    try { await supabase.from('entries').delete().eq('id', id); }
+    catch (err) { console.warn('Delete entry failed', err); }
+  }
+  renderJournal(); renderHome(); renderDevotion(); renderWalk();
+  switchTo('journal');
+  toast('Entry deleted');
+}
+
+function formatLongDate(iso) {
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+  }) + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
 function renderJournal() {
   const list = document.getElementById('journalList');
   if (!state.entries.length) {
@@ -1423,7 +1500,7 @@ function renderJournal() {
   list.innerHTML = state.entries.slice().reverse().map(e => {
     const linked = e.linkedVerseId ? state.verses.find(v => v.id === e.linkedVerseId) : null;
     return `
-      <div class="journal-entry">
+      <div class="journal-entry" onclick="App.viewEntry('${e.id}')">
         <div class="meta">
           <span class="date">${formatDate(e.date)}</span>
           <span class="method-tag">${e.method}</span>
@@ -1573,10 +1650,15 @@ function switchTo(name) {
   const tab = document.querySelector(`.tab[data-screen="${name}"]`);
   if (tab) tab.classList.add('active');
   else {
-    // sub-screen — keep "Home" active for home/devotion/memorise/session/review/verse-detail
-    const homeTab = document.querySelector('.tab[data-screen="home"]');
-    if (['home','devotion','memorise','session','review','verse-detail'].includes(name) && homeTab)
-      homeTab.classList.add('active');
+    // sub-screens — keep the appropriate top-level tab active
+    if (name === 'entry-detail') {
+      const journalTab = document.querySelector('.tab[data-screen="journal"]');
+      if (journalTab) journalTab.classList.add('active');
+    } else {
+      const homeTab = document.querySelector('.tab[data-screen="home"]');
+      if (['home','devotion','memorise','session','review','verse-detail'].includes(name) && homeTab)
+        homeTab.classList.add('active');
+    }
   }
 
   // Hide topbar/tabbar for full-screen sessions
@@ -1664,6 +1746,9 @@ window.App = {
   startMemoriseReview, reviewSingle, exitReview,
   revealReview, checkTypeBack, gradeReview,
   viewVerse, deleteVerse, editVerse, useVerseInDevotion,
+
+  // Journal
+  viewEntry, deleteEntry,
 
   // Misc
   closeReward, requestNotificationPermission
