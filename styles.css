@@ -580,7 +580,17 @@ textarea.manual-passage { min-height: 180px; font-size: 17px; line-height: 1.55;
   animation: breathe 8s ease-in-out infinite;
 }
 @keyframes breathe { 0%, 100% { transform: scale(0.85); } 50% { transform: scale(1); } }
-.stillness-text { font-family: var(--serif); font-size: 16px; color: var(--ink-soft); font-style: italic; }
+.stillness-text { font-family: var(--serif); font-size: 18px; color: var(--ink-soft); font-style: italic; }
+.stillness-sub {
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink-faint);
+  margin-top: 14px;
+  line-height: 1.55;
+  max-width: 260px;
+  margin-left: auto;
+  margin-right: auto;
+}
 
 .session-footer {
   position: sticky;
