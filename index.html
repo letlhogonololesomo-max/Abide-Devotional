@@ -10,8 +10,8 @@
 <meta name="apple-mobile-web-app-title" content="Abide">
 <title>Abide</title>
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -201,6 +201,14 @@
       <button class="back-btn" onclick="App.enterMemorise()">← Memorise</button>
     </div>
     <div id="verseDetailBody"></div>
+  </div>
+
+  <!-- ENTRY DETAIL -->
+  <div class="screen" id="screen-entry-detail">
+    <div class="back-row">
+      <button class="back-btn" onclick="App.switchTo('journal')">← Journal</button>
+    </div>
+    <div id="entryDetailBody"></div>
   </div>
 
 </div>
