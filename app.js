@@ -64,12 +64,16 @@ function saveLocal() {
 }
 
 function getDeviceId() {
-  let id = localStorage.getItem(DEVICE_KEY);
-  if (!id) {
-    id = (crypto.randomUUID && crypto.randomUUID()) || makeUuid();
-    localStorage.setItem(DEVICE_KEY, id);
-  }
-  return id;
+  // Single-user app: always use the owner device_id from config.
+  // Falls back to localStorage only for legacy installs that haven't
+  // reloaded the new config yet.
+  return CFG.OWNER_DEVICE_ID
+      || localStorage.getItem(DEVICE_KEY)
+      || (() => {
+           const id = (crypto.randomUUID && crypto.randomUUID()) || makeUuid();
+           localStorage.setItem(DEVICE_KEY, id);
+           return id;
+         })();
 }
 
 function makeUuid() {
