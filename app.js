@@ -1022,12 +1022,13 @@ function todaysPassage() {
 }
 
 function buildSteps(method, passageRef, prefilledText, linkedVerseId) {
-  const stillness = {
-    label: 'STILLNESS',
+  const reticence = {
+    label: 'RETICENCE',
     render: () => `
       <div class="stillness">
         <div class="breath-circle">✦</div>
         <div class="stillness-text">"Be still, and know that I am God."</div>
+        <div class="stillness-sub">Hold back your own words. Make room to hear his.</div>
       </div>
     `
   };
@@ -1057,13 +1058,25 @@ function buildSteps(method, passageRef, prefilledText, linkedVerseId) {
     `
   });
 
-  const carryStep = {
-    label: 'CARRY',
+  const restStep = {
+    label: 'REST',
+    silent: true,
+    render: () => `
+      <div class="stillness">
+        <div class="breath-circle">✦</div>
+        <div class="stillness-text">Be with him in it.</div>
+        <div class="stillness-sub">Pause before moving on. You don't need to fix or finish anything. Just remain.</div>
+      </div>
+    `
+  };
+
+  const runStep = {
+    label: 'RUN',
     fieldId: 'field-carry',
     render: () => `
-      <h2 class="step-title">One line to carry</h2>
-      <p class="step-prompt">What single truth will you carry into today? Keep it short — something you can repeat.</p>
-      <textarea class="field" id="field-carry" placeholder="Today I carry..." style="min-height: 80px;"></textarea>
+      <h2 class="step-title">Carry it forward</h2>
+      <p class="step-prompt">What is the one thing — small, concrete — that you'll do today because of this? Keep it short, something you can actually repeat or remember.</p>
+      <textarea class="field" id="field-carry" placeholder="Today I will..." style="min-height: 80px;"></textarea>
       ${session.linkedVerseId ? '' : `
         <div class="carry-memorise">
           <button class="btn btn-secondary" onclick="App.carryToMemorise()">+ Add this to memorisation</button>
@@ -1073,29 +1086,33 @@ function buildSteps(method, passageRef, prefilledText, linkedVerseId) {
   };
 
   const skeletons = {
-    lectio: [stillness,
-      passageStep('READ',     { title: 'Read slowly', body: 'Read the passage once. Notice the rhythm of the words. Let it wash over you.' }),
-      passageStep('MEDITATE', { title: 'Read again',  body: 'A word or phrase will likely stand out. Read again and notice what catches you.' }),
-      writeStep('LISTENING', 'What stood out?', 'What word, phrase, or image is the Lord highlighting? Write what you sense him saying.', 'field-listening'),
-      writeStep('PRAYER', 'Pray it back', 'Speak to God about what you noticed. What does it stir in you? What do you want to ask?', 'field-prayer'),
-      carryStep
+    lectio: [
+      reticence,
+      passageStep('READ',    { title: 'Read slowly', body: 'Read once at normal pace. Read again, slowly. Notice the rhythm of the words.' }),
+      writeStep('REFLECT',   'What stood out?', 'What word, phrase, or image is the Lord highlighting? Sit with it before you write.', 'field-listening'),
+      writeStep('RESPOND',   'Pray it back', 'Speak to God about what you noticed. What does it stir? What do you want to ask him?', 'field-prayer'),
+      restStep,
+      runStep
     ],
-    soap: [stillness,
+    soap: [
+      reticence,
       passageStep('SCRIPTURE', { title: 'Scripture', body: 'Read the passage. Underline the verse that speaks loudest.' }),
       writeStep('OBSERVATION', 'Observation', 'What is happening in this passage? What does it say about God? About people?', 'field-observation'),
       writeStep('APPLICATION', 'Application', 'How does this apply to your life today? What needs to change, or what is being affirmed?', 'field-application'),
-      writeStep('PRAYER', 'Prayer', 'Pray this passage back to God in your own words.', 'field-prayer'),
-      carryStep
+      writeStep('PRAYER',      'Prayer',      'Pray this passage back to God in your own words.', 'field-prayer'),
+      runStep
     ],
-    plan: [stillness,
+    plan: [
+      reticence,
       passageStep('READING', { title: "Today's reading", body: 'Read carefully. Take your time.' }),
       writeStep('LISTENING', 'What is he saying?', 'What is the Lord saying to you through this reading? Write freely.', 'field-listening'),
-      carryStep
+      runStep
     ],
-    free: [stillness,
+    free: [
+      reticence,
       passageStep('PASSAGE', { title: 'A word for today', body: 'Sit with this passage. No prompts, no structure — just you and the Word.' }),
       writeStep('REFLECTION', 'Free reflection', 'Whatever the Spirit stirs. There are no wrong answers here.', 'field-listening'),
-      carryStep
+      runStep
     ]
   };
 
@@ -1156,7 +1173,7 @@ function renderSessionStep() {
   if (!isFirst) html += `<button class="btn btn-secondary" onclick="App.prevStep()">Back</button>`;
   if (isLast) {
     html += `<button class="btn btn-primary" onclick="App.finishSession()">Complete</button>`;
-  } else if (step.label === 'STILLNESS') {
+  } else if (step.silent || step.label === 'RETICENCE') {
     html += `<button class="btn btn-secondary btn-skip" onclick="App.nextStep()">Skip</button>`;
     html += `<button class="btn btn-primary" onclick="App.nextStep()">Continue</button>`;
   } else {
@@ -1329,7 +1346,7 @@ function openMemoriseVersePicker() {
           <div class="modal-handle"></div>
           <div class="modal-title">Method for "${escapeHtml(v.reference)}"</div>
           <div class="modal-sub">Same skeleton, different depths</div>
-          <button class="method-option" data-m="lectio"><div class="name">Lectio Divina</div><div class="desc">Four passes through the same passage.</div></button>
+          <button class="method-option" data-m="lectio"><div class="name">5R</div><div class="desc">Reticence, Read, Reflect, Respond, Rest, Run.</div></button>
           <button class="method-option" data-m="soap"><div class="name">SOAP</div><div class="desc">Scripture, Observation, Application, Prayer.</div></button>
           <button class="method-option" data-m="free"><div class="name">Free</div><div class="desc">Open page, no prompts.</div></button>
         </div>
@@ -1379,7 +1396,7 @@ async function useVerseInDevotion(id) {
           <div class="modal-handle"></div>
           <div class="modal-title">Method for "${escapeHtml(v.reference)}"</div>
           <div class="modal-sub">Same skeleton, different depths</div>
-          <button class="method-option" data-m="lectio"><div class="name">Lectio Divina</div><div class="desc">Four passes through the same passage.</div></button>
+          <button class="method-option" data-m="lectio"><div class="name">5R</div><div class="desc">Reticence, Read, Reflect, Respond, Rest, Run.</div></button>
           <button class="method-option" data-m="soap"><div class="name">SOAP</div><div class="desc">Scripture, Observation, Application, Prayer.</div></button>
           <button class="method-option" data-m="free"><div class="name">Free</div><div class="desc">Open page, no prompts.</div></button>
         </div>
