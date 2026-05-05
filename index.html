@@ -126,10 +126,36 @@
 
   <!-- PRAYER -->
   <div class="screen" id="screen-prayer">
-    <h2 class="section-title">Fixed Hours</h2>
-    <p class="section-sub">Anchor your day in prayer</p>
-    <div id="prayerList"></div>
-    <div class="notification-status" id="notificationStatus"></div>
+    <h2 class="section-title">Prayer</h2>
+    <p class="section-sub">Standing in the gap</p>
+
+    <button class="btn-primary prayer-add-btn" onclick="App.openAddPrayerModal()">
+      + Add to my heart
+    </button>
+
+    <h3 class="subhead prayer-section-title">On my heart</h3>
+    <p class="prayer-section-sub" id="heartSummary">Things I'm holding before God</p>
+    <div id="heartList"></div>
+
+    <h3 class="subhead prayer-section-title" id="remembranceTitle">Remembrance</h3>
+    <p class="prayer-section-sub" id="remembranceSummary">Answered prayers</p>
+    <div id="remembranceList"></div>
+    <button class="btn-link" id="seeAllAnsweredBtn" onclick="App.toggleAllAnswered()" style="display:none;">See all</button>
+
+    <details class="hours-collapse">
+      <summary>Fixed Hours <span class="hours-count" id="hoursCount"></span></summary>
+      <p class="prayer-section-sub" style="margin-top:8px;">Anchor your day in prayer</p>
+      <div id="prayerList"></div>
+      <div class="notification-status" id="notificationStatus"></div>
+    </details>
+  </div>
+
+  <!-- PRAYER REQUEST DETAIL -->
+  <div class="screen" id="screen-prayer-detail">
+    <div class="back-row">
+      <button class="back-btn" onclick="App.switchTo('prayer')">← Prayer</button>
+    </div>
+    <div id="prayerDetailBody"></div>
   </div>
 
   <!-- WALK -->
@@ -156,6 +182,17 @@
       <div class="walk-tile">
         <div class="label">Verses Hidden</div>
         <div class="value" id="walkVerses">0<small>memorised</small></div>
+      </div>
+    </div>
+
+    <div class="walk-strip" style="margin-top: 10px;">
+      <div class="walk-tile">
+        <div class="label">On My Heart</div>
+        <div class="value" id="walkPrayersActive">0<small>active</small></div>
+      </div>
+      <div class="walk-tile">
+        <div class="label">Remembrance</div>
+        <div class="value" id="walkPrayersAnswered">0<small>answered</small></div>
       </div>
     </div>
 
@@ -243,7 +280,7 @@
     <div id="methodMemoriseSlot"></div>
 
     <button class="method-option" onclick="App.startSession('lectio')">
-      <div class="name">5R</div>
+      <div class="name">Rest to Run</div>
       <div class="desc">Reticence, Read, Reflect, Respond, Rest, Run. Slow and contemplative.</div>
       <div class="meta">~12 min</div>
     </button>
@@ -308,6 +345,50 @@ And we know that in all things God works for the good of those who love him...">
         <button class="btn-secondary" onclick="App.closeAddVerseModal()">Cancel</button>
         <button class="btn-primary" onclick="App.saveBulkVerses()">Save all</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD PRAYER MODAL -->
+<div class="modal-overlay" id="addPrayerModal" onclick="if(event.target===this) App.closeAddPrayerModal()">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="addPrayerTitle">Add to my heart</div>
+    <div class="modal-sub">Lord, I'm bringing this before you.</div>
+
+    <label class="field-label">What are you taking before God?</label>
+    <textarea class="field" id="prayerTitleField" placeholder="e.g. Mom's surgery on the 14th" style="min-height:80px;"></textarea>
+
+    <label class="field-label">For whom? <span class="optional">(optional)</span></label>
+    <input type="text" class="text-input" id="prayerForField" placeholder="e.g. Mom, me, our team">
+
+    <details class="more-fields">
+      <summary>More</summary>
+      <label class="field-label">Detail <span class="optional">(optional)</span></label>
+      <textarea class="field" id="prayerDetailField" placeholder="Longer context, a written prayer, anything you want to remember…" style="min-height:100px;"></textarea>
+    </details>
+
+    <div class="modal-buttons">
+      <button class="btn-secondary" onclick="App.closeAddPrayerModal()">Cancel</button>
+      <button class="btn-primary" id="prayerSaveBtn" onclick="App.savePrayer()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- MARK ANSWERED MODAL -->
+<div class="modal-overlay" id="answerPrayerModal" onclick="if(event.target===this) App.closeAnswerPrayerModal()">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Praise God</div>
+    <div class="modal-sub" id="answerPrayerSub">For: …</div>
+
+    <label class="field-label">How did God answer?</label>
+    <p class="field-help">A short testimony — for your remembrance, and for the days you'll need it.</p>
+    <textarea class="field" id="answerTextField" placeholder="What happened. What you saw. What you want to remember." style="min-height:120px;"></textarea>
+
+    <div class="modal-buttons">
+      <button class="btn-secondary" onclick="App.closeAnswerPrayerModal()">Cancel</button>
+      <button class="btn-primary" onclick="App.confirmAnswer()">Move to remembrance</button>
     </div>
   </div>
 </div>
