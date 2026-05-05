@@ -572,7 +572,7 @@ function renderDevotion() {
       <div class="journal-entry">
         <div class="meta">
           <span class="date">${formatDate(e.date)}</span>
-          <span class="method-tag">${e.method}</span>
+          <span class="method-tag">${methodLabel(e.method)}</span>
         </div>
         <div class="ref">${escapeHtml(e.passageRef || 'Free reflection')}</div>
         <div class="preview">${escapeHtml(e.preview || '')}</div>
@@ -1563,7 +1563,7 @@ function viewEntry(id) {
   document.getElementById('entryDetailBody').innerHTML = `
     <div class="entry-detail-meta">
       <span class="entry-date">${formatLongDate(e.date)}</span>
-      <span class="method-tag">${escapeHtml(e.method)}</span>
+      <span class="method-tag">${escapeHtml(methodLabel(e.method))}</span>
     </div>
     <h2 class="section-title entry-ref">${escapeHtml(e.passageRef || 'Free reflection')}</h2>
     ${e.translation ? `<p class="section-sub">${escapeHtml(e.translation)}</p>` : ''}
@@ -1609,7 +1609,7 @@ function renderJournal() {
       <div class="journal-entry" onclick="App.viewEntry('${e.id}')">
         <div class="meta">
           <span class="date">${formatDate(e.date)}</span>
-          <span class="method-tag">${e.method}</span>
+          <span class="method-tag">${methodLabel(e.method)}</span>
         </div>
         <div class="ref">${escapeHtml(e.passageRef || 'Free reflection')}${e.translation ? ' · ' + escapeHtml(e.translation) : ''}</div>
         <div class="preview">${escapeHtml(e.preview || '(no reflection)')}</div>
@@ -1632,6 +1632,20 @@ function escapeHtml(s) {
   const div = document.createElement('div');
   div.textContent = s == null ? '' : String(s);
   return div.innerHTML;
+}
+
+// Map the stored method identifier (LECTIO, SOAP, PLAN, FREE) to its
+// user-facing label. Older entries saved as LECTIO display as "5R" —
+// the database key never changes, so historical data stays consistent
+// even if the label is renamed again later.
+function methodLabel(stored) {
+  const map = {
+    LECTIO: '5R',
+    SOAP: 'SOAP',
+    PLAN: 'PLAN',
+    FREE: 'FREE'
+  };
+  return map[String(stored || '').toUpperCase()] || stored || '';
 }
 
 // =====================================================================
