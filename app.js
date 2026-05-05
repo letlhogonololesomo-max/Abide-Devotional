@@ -33,6 +33,8 @@ const defaultState = {
   graceMonth: new Date().getMonth(),
   entries: [],
   verses: [],          // memorisation
+  prayerRequests: [],  // prayer requests (active, answered, archived)
+  prayerLogs: [],      // log of "I prayed for this today" taps
   prayers: {
     morning: { enabled: true,  time: '06:30', name: 'Morning' },
     midday:  { enabled: false, time: '12:00', name: 'Midday' },
@@ -50,6 +52,9 @@ let session = null;       // devotion session
 let review = null;        // memorisation review session
 let verseFilter = 'all';
 let addTab = 'single';
+let editingPrayerId = null;     // when add/edit modal is open
+let answeringPrayerId = null;   // when answer modal is open
+let showAllAnswered = false;
 
 function loadLocal() {
   try {
@@ -103,6 +108,17 @@ async function syncFromCloud() {
       .from('memorise_verses').select('*').eq('device_id', deviceId)
       .order('created_at', { ascending: true });
 
+    const { data: prayers } = await supabase
+      .from('prayer_requests').select('*').eq('device_id', deviceId)
+      .order('created_at', { ascending: false });
+
+    // Fetch only recent prayer logs (last 7 days) — old ones aren't needed in UI.
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+    const { data: prayerLogs } = await supabase
+      .from('prayer_logs').select('*').eq('device_id', deviceId)
+      .gte('prayed_at', sevenDaysAgo)
+      .order('prayed_at', { ascending: false });
+
     if (stateRow) {
       state.streak             = stateRow.streak ?? state.streak;
       state.lastSession        = stateRow.last_session ?? state.lastSession;
@@ -114,8 +130,10 @@ async function syncFromCloud() {
       state.preferredTranslation = stateRow.preferred_translation ?? state.preferredTranslation;
     }
 
-    if (entries) state.entries = entries.map(rowToEntry);
-    if (verses)  state.verses  = verses.map(rowToVerse);
+    if (entries)    state.entries        = entries.map(rowToEntry);
+    if (verses)     state.verses         = verses.map(rowToVerse);
+    if (prayers)    state.prayerRequests = prayers.map(rowToPrayerRequest);
+    if (prayerLogs) state.prayerLogs     = prayerLogs.map(rowToPrayerLog);
 
     saveLocal();
     setSyncStatus('synced');
@@ -205,6 +223,49 @@ async function pushReviewToCloud(rev) {
   } catch (err) { console.warn('Push review failed', err); }
 }
 
+async function pushPrayerToCloud(p) {
+  if (!supabase) return;
+  try {
+    await supabase.from('prayer_requests').upsert({
+      id: p.id,
+      device_id: getDeviceId(),
+      title: p.title,
+      detail: p.detail || null,
+      for_whom: p.forWhom || null,
+      status: p.status,
+      answered_text: p.answeredText || null,
+      answered_at: p.answeredAt || null,
+      linked_verse_id: p.linkedVerseId || null,
+      created_at: p.createdAt
+    });
+  } catch (err) { console.warn('Push prayer failed', err); }
+}
+
+async function deletePrayerFromCloud(id) {
+  if (!supabase) return;
+  try { await supabase.from('prayer_requests').delete().eq('id', id); }
+  catch (err) { console.warn('Delete prayer failed', err); }
+}
+
+async function pushPrayerLogToCloud(log) {
+  if (!supabase) return;
+  try {
+    await supabase.from('prayer_logs').insert({
+      id: log.id,
+      request_id: log.requestId,
+      device_id: getDeviceId(),
+      prayed_at: log.prayedAt,
+      prayed_date: log.prayedDate
+    });
+  } catch (err) { console.warn('Push prayer log failed', err); }
+}
+
+async function deletePrayerLogFromCloud(id) {
+  if (!supabase) return;
+  try { await supabase.from('prayer_logs').delete().eq('id', id); }
+  catch (err) { console.warn('Delete prayer log failed', err); }
+}
+
 function rowToEntry(row) {
   return {
     id: row.id,
@@ -234,6 +295,30 @@ function rowToVerse(row) {
     lastReview: row.last_review,
     reviewCount: row.review_count,
     createdAt: row.created_at
+  };
+}
+
+function rowToPrayerRequest(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    detail: row.detail || '',
+    forWhom: row.for_whom || '',
+    status: row.status,
+    answeredText: row.answered_text || '',
+    answeredAt: row.answered_at,
+    linkedVerseId: row.linked_verse_id || null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function rowToPrayerLog(row) {
+  return {
+    id: row.id,
+    requestId: row.request_id,
+    prayedAt: row.prayed_at,
+    prayedDate: row.prayed_date
   };
 }
 
@@ -1346,7 +1431,7 @@ function openMemoriseVersePicker() {
           <div class="modal-handle"></div>
           <div class="modal-title">Method for "${escapeHtml(v.reference)}"</div>
           <div class="modal-sub">Same skeleton, different depths</div>
-          <button class="method-option" data-m="lectio"><div class="name">5R</div><div class="desc">Reticence, Read, Reflect, Respond, Rest, Run.</div></button>
+          <button class="method-option" data-m="lectio"><div class="name">Rest to Run</div><div class="desc">Reticence, Read, Reflect, Respond, Rest, Run.</div></button>
           <button class="method-option" data-m="soap"><div class="name">SOAP</div><div class="desc">Scripture, Observation, Application, Prayer.</div></button>
           <button class="method-option" data-m="free"><div class="name">Free</div><div class="desc">Open page, no prompts.</div></button>
         </div>
@@ -1396,7 +1481,7 @@ async function useVerseInDevotion(id) {
           <div class="modal-handle"></div>
           <div class="modal-title">Method for "${escapeHtml(v.reference)}"</div>
           <div class="modal-sub">Same skeleton, different depths</div>
-          <button class="method-option" data-m="lectio"><div class="name">5R</div><div class="desc">Reticence, Read, Reflect, Respond, Rest, Run.</div></button>
+          <button class="method-option" data-m="lectio"><div class="name">Rest to Run</div><div class="desc">Reticence, Read, Reflect, Respond, Rest, Run.</div></button>
           <button class="method-option" data-m="soap"><div class="name">SOAP</div><div class="desc">Scripture, Observation, Application, Prayer.</div></button>
           <button class="method-option" data-m="free"><div class="name">Free</div><div class="desc">Open page, no prompts.</div></button>
         </div>
@@ -1552,7 +1637,95 @@ function escapeHtml(s) {
 // =====================================================================
 // Prayer
 // =====================================================================
+
+// ---- Helpers ----
+function localDateKey(d) {
+  // YYYY-MM-DD in user's local time. Mirror what Postgres does with
+  // current_date so client and server agree on "today".
+  d = d || new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function prayedTodayFor(requestId) {
+  const today = localDateKey();
+  return state.prayerLogs.some(l => l.requestId === requestId && (l.prayedDate === today
+    || (l.prayedAt && localDateKey(new Date(l.prayedAt)) === today)));
+}
+
+function activePrayerCount() {
+  return state.prayerRequests.filter(p => p.status === 'active').length;
+}
+
+function answeredCountThisMonth() {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  return state.prayerRequests.filter(p =>
+    p.status === 'answered' && p.answeredAt && p.answeredAt >= monthStart
+  ).length;
+}
+
+function answeredCountTotal() {
+  return state.prayerRequests.filter(p => p.status === 'answered').length;
+}
+
+function daysSince(iso) {
+  if (!iso) return 0;
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+}
+
+// ---- Render ----
 function renderPrayer() {
+  // Heart list (active requests)
+  const active = state.prayerRequests
+    .filter(p => p.status === 'active')
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  const heartSummary = document.getElementById('heartSummary');
+  heartSummary.textContent = active.length === 0
+    ? 'Nothing yet. Tap "+ Add to my heart" to begin.'
+    : `${active.length} ${active.length === 1 ? 'thing' : 'things'} I'm holding before God`;
+
+  const heart = document.getElementById('heartList');
+  heart.innerHTML = active.map(p => renderHeartCard(p)).join('');
+
+  // Remembrance (answered)
+  const answered = state.prayerRequests
+    .filter(p => p.status === 'answered')
+    .sort((a, b) => new Date(b.answeredAt || b.updatedAt) - new Date(a.answeredAt || a.updatedAt));
+
+  const rememberanceTitle = document.getElementById('remembranceTitle');
+  const remembranceSummary = document.getElementById('remembranceSummary');
+  const remembranceList = document.getElementById('remembranceList');
+  const seeAllBtn = document.getElementById('seeAllAnsweredBtn');
+
+  if (answered.length === 0) {
+    rememberanceTitle.style.display = 'none';
+    remembranceSummary.style.display = 'none';
+    remembranceList.innerHTML = '';
+    seeAllBtn.style.display = 'none';
+  } else {
+    rememberanceTitle.style.display = '';
+    remembranceSummary.style.display = '';
+    const monthCount = answeredCountThisMonth();
+    remembranceSummary.textContent = monthCount > 0
+      ? `${monthCount} answered this month · ${answered.length} in all`
+      : `${answered.length} answered`;
+
+    const visible = showAllAnswered ? answered : answered.slice(0, 3);
+    remembranceList.innerHTML = visible.map(p => renderRemembranceCard(p)).join('');
+
+    if (answered.length > 3) {
+      seeAllBtn.style.display = '';
+      seeAllBtn.textContent = showAllAnswered ? 'Show less' : `See all ${answered.length}`;
+    } else {
+      seeAllBtn.style.display = 'none';
+    }
+  }
+
+  // Fixed hours (collapsed section)
   const list = document.getElementById('prayerList');
   list.innerHTML = Object.entries(state.prayers).map(([key, p]) => `
     <div class="prayer-card">
@@ -1574,6 +1747,10 @@ function renderPrayer() {
     });
   });
 
+  const enabledHours = Object.values(state.prayers).filter(p => p.enabled).length;
+  const hoursCount = document.getElementById('hoursCount');
+  if (hoursCount) hoursCount.textContent = enabledHours ? `· ${enabledHours} active` : '';
+
   const ns = document.getElementById('notificationStatus');
   if (!CFG.ONESIGNAL_APP_ID) {
     ns.innerHTML = `<div>Notifications aren't set up yet. When OneSignal is configured (see README), you'll be prompted to enable prayer reminders here.</div>`;
@@ -1584,6 +1761,269 @@ function renderPrayer() {
   }
 }
 
+function renderHeartCard(p) {
+  const prayed = prayedTodayFor(p.id);
+  const days = daysSince(p.createdAt);
+  const ageText = days === 0 ? 'today' : days === 1 ? '1 day' : `${days} days`;
+  const meta = (p.forWhom ? `for ${escapeHtml(p.forWhom)} · ` : '') + ageText;
+  const tapHandler = `event.stopPropagation(); App.tapPrayed('${p.id}')`;
+  return `
+    <div class="heart-card ${prayed ? 'prayed' : ''}" onclick="App.viewPrayer('${p.id}')">
+      <div class="heart-card-body">
+        <div class="heart-title">${escapeHtml(p.title)}</div>
+        <div class="heart-meta">${meta}</div>
+        <div class="heart-status">
+          <span class="prayed-mark ${prayed ? 'on' : 'off'}" onclick="${tapHandler}">
+            ${prayed ? '✓ prayed today' : '○ not yet prayed today'}
+          </span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderRemembranceCard(p) {
+  const ago = daysSince(p.answeredAt || p.updatedAt);
+  const agoText = ago === 0 ? 'today' : ago === 1 ? 'yesterday' : `${ago} days ago`;
+  const testimony = (p.answeredText || '').trim();
+  return `
+    <div class="remembrance-card" onclick="App.viewPrayer('${p.id}')">
+      <div class="r-title">✓ ${escapeHtml(p.title)}</div>
+      ${testimony ? `<div class="r-testimony">${escapeHtml(testimony)}</div>` : ''}
+      <div class="r-when">Answered ${agoText}</div>
+    </div>
+  `;
+}
+
+function toggleAllAnswered() {
+  showAllAnswered = !showAllAnswered;
+  renderPrayer();
+}
+
+// ---- Add / edit ----
+function openAddPrayerModal(id) {
+  editingPrayerId = id || null;
+  const titleEl = document.getElementById('addPrayerTitle');
+  const saveEl = document.getElementById('prayerSaveBtn');
+  if (id) {
+    const p = state.prayerRequests.find(x => x.id === id);
+    if (!p) return;
+    titleEl.textContent = 'Edit prayer';
+    saveEl.textContent = 'Update';
+    document.getElementById('prayerTitleField').value = p.title;
+    document.getElementById('prayerForField').value = p.forWhom || '';
+    document.getElementById('prayerDetailField').value = p.detail || '';
+  } else {
+    titleEl.textContent = 'Add to my heart';
+    saveEl.textContent = 'Save';
+    document.getElementById('prayerTitleField').value = '';
+    document.getElementById('prayerForField').value = '';
+    document.getElementById('prayerDetailField').value = '';
+  }
+  document.getElementById('addPrayerModal').classList.add('active');
+  setTimeout(() => document.getElementById('prayerTitleField').focus(), 100);
+}
+
+function closeAddPrayerModal() {
+  document.getElementById('addPrayerModal').classList.remove('active');
+  editingPrayerId = null;
+}
+
+async function savePrayer() {
+  const title = document.getElementById('prayerTitleField').value.trim();
+  const forWhom = document.getElementById('prayerForField').value.trim();
+  const detail = document.getElementById('prayerDetailField').value.trim();
+  if (!title) { toast('What are you praying for?'); return; }
+
+  if (editingPrayerId) {
+    const p = state.prayerRequests.find(x => x.id === editingPrayerId);
+    if (!p) { closeAddPrayerModal(); return; }
+    p.title = title;
+    p.forWhom = forWhom;
+    p.detail = detail;
+    p.updatedAt = new Date().toISOString();
+    saveLocal();
+    await pushPrayerToCloud(p);
+    toast('Prayer updated');
+  } else {
+    const p = {
+      id: makeUuid(),
+      title,
+      forWhom,
+      detail,
+      status: 'active',
+      answeredText: '',
+      answeredAt: null,
+      linkedVerseId: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    state.prayerRequests.unshift(p);
+    saveLocal();
+    await pushPrayerToCloud(p);
+    toast('Added to your heart');
+  }
+
+  closeAddPrayerModal();
+  renderPrayer(); renderWalk();
+}
+
+// ---- "I prayed today" tap ----
+async function tapPrayed(requestId) {
+  const today = localDateKey();
+  const existing = state.prayerLogs.find(l =>
+    l.requestId === requestId && l.prayedDate === today
+  );
+  if (existing) {
+    // Untap — remove the log
+    state.prayerLogs = state.prayerLogs.filter(l => l.id !== existing.id);
+    saveLocal();
+    await deletePrayerLogFromCloud(existing.id);
+  } else {
+    const log = {
+      id: makeUuid(),
+      requestId,
+      prayedAt: new Date().toISOString(),
+      prayedDate: today
+    };
+    state.prayerLogs.push(log);
+    saveLocal();
+    await pushPrayerLogToCloud(log);
+  }
+  renderPrayer();
+}
+
+// ---- View detail ----
+function viewPrayer(id) {
+  const p = state.prayerRequests.find(x => x.id === id);
+  if (!p) return;
+  const linked = p.linkedVerseId ? state.verses.find(v => v.id === p.linkedVerseId) : null;
+  const prayed = prayedTodayFor(p.id);
+
+  const prayedHistory = state.prayerLogs
+    .filter(l => l.requestId === p.id)
+    .sort((a, b) => new Date(b.prayedAt) - new Date(a.prayedAt))
+    .length;
+
+  const isAnswered = p.status === 'answered';
+  const isArchived = p.status === 'archived';
+
+  document.getElementById('prayerDetailBody').innerHTML = `
+    <div class="entry-detail-meta">
+      <span class="entry-date">${formatLongDate(p.createdAt)}</span>
+      <span class="method-tag">${p.status.toUpperCase()}</span>
+    </div>
+    <h2 class="section-title entry-ref">${escapeHtml(p.title)}</h2>
+    ${p.forWhom ? `<p class="section-sub">For ${escapeHtml(p.forWhom)}</p>` : ''}
+
+    ${p.detail ? `<div class="entry-passage" style="margin-top:14px;">${escapeHtml(p.detail)}</div>` : ''}
+
+    ${linked ? `<div class="entry-linked">∞ Linked verse: <strong>${escapeHtml(linked.reference)}</strong></div>` : ''}
+
+    ${isAnswered ? `
+      <div class="answered-block">
+        <div class="answered-label">How God answered</div>
+        <div class="answered-text">${escapeHtml(p.answeredText || '(no testimony recorded)')}</div>
+        <div class="answered-when">${p.answeredAt ? formatLongDate(p.answeredAt) : ''}</div>
+      </div>
+    ` : ''}
+
+    ${!isAnswered && !isArchived ? `
+      <div class="prayer-detail-stats">
+        <div><span class="lbl">Prayed</span><span class="val">${prayedHistory}×</span></div>
+        <div><span class="lbl">Today</span><span class="val">${prayed ? '✓' : '○'}</span></div>
+        <div><span class="lbl">Days</span><span class="val">${daysSince(p.createdAt)}</span></div>
+      </div>
+    ` : ''}
+
+    <h3 class="subhead">Actions</h3>
+    ${!isAnswered && !isArchived ? `
+      <button class="btn btn-primary" onclick="App.openAnswerPrayerModal('${p.id}')">Mark answered</button>
+      <button class="btn btn-secondary" onclick="App.openAddPrayerModal('${p.id}')">Edit</button>
+      <button class="btn btn-secondary" onclick="App.archivePrayer('${p.id}')">Archive</button>
+    ` : ''}
+    ${isAnswered ? `
+      <button class="btn btn-secondary" onclick="App.reactivatePrayer('${p.id}')">Move back to active</button>
+    ` : ''}
+    ${isArchived ? `
+      <button class="btn btn-secondary" onclick="App.reactivatePrayer('${p.id}')">Re-activate</button>
+    ` : ''}
+    <button class="btn btn-secondary danger" onclick="App.deletePrayer('${p.id}')">Delete</button>
+  `;
+  switchTo('prayer-detail');
+}
+
+// ---- Mark answered ----
+function openAnswerPrayerModal(id) {
+  const p = state.prayerRequests.find(x => x.id === id);
+  if (!p) return;
+  answeringPrayerId = id;
+  document.getElementById('answerPrayerSub').textContent = `For: ${p.title}`;
+  document.getElementById('answerTextField').value = p.answeredText || '';
+  document.getElementById('answerPrayerModal').classList.add('active');
+  setTimeout(() => document.getElementById('answerTextField').focus(), 100);
+}
+
+function closeAnswerPrayerModal() {
+  document.getElementById('answerPrayerModal').classList.remove('active');
+  answeringPrayerId = null;
+}
+
+async function confirmAnswer() {
+  if (!answeringPrayerId) return;
+  const p = state.prayerRequests.find(x => x.id === answeringPrayerId);
+  if (!p) return;
+  const text = document.getElementById('answerTextField').value.trim();
+  p.answeredText = text;
+  p.answeredAt = new Date().toISOString();
+  p.status = 'answered';
+  p.updatedAt = p.answeredAt;
+  saveLocal();
+  await pushPrayerToCloud(p);
+  closeAnswerPrayerModal();
+  renderPrayer(); renderWalk();
+  toast('Moved to remembrance');
+  switchTo('prayer');
+}
+
+async function archivePrayer(id) {
+  const p = state.prayerRequests.find(x => x.id === id);
+  if (!p) return;
+  p.status = 'archived';
+  p.updatedAt = new Date().toISOString();
+  saveLocal();
+  await pushPrayerToCloud(p);
+  renderPrayer(); renderWalk();
+  switchTo('prayer');
+  toast('Archived');
+}
+
+async function reactivatePrayer(id) {
+  const p = state.prayerRequests.find(x => x.id === id);
+  if (!p) return;
+  p.status = 'active';
+  p.answeredText = '';
+  p.answeredAt = null;
+  p.updatedAt = new Date().toISOString();
+  saveLocal();
+  await pushPrayerToCloud(p);
+  renderPrayer(); renderWalk();
+  switchTo('prayer');
+  toast('Back on your heart');
+}
+
+async function deletePrayer(id) {
+  if (!confirm('Delete this prayer? This cannot be undone.')) return;
+  state.prayerRequests = state.prayerRequests.filter(x => x.id !== id);
+  state.prayerLogs = state.prayerLogs.filter(l => l.requestId !== id);
+  saveLocal();
+  await deletePrayerFromCloud(id);
+  renderPrayer(); renderWalk();
+  switchTo('prayer');
+  toast('Prayer deleted');
+}
+
+// ---- Hours ----
 function togglePrayer(key) {
   state.prayers[key].enabled = !state.prayers[key].enabled;
   saveLocal();
@@ -1612,6 +2052,13 @@ function renderWalk() {
   document.getElementById('walkGrace').innerHTML  = `${state.graceDays}<small>left</small>`;
   document.getElementById('walkEntries').innerHTML = `${state.entries.length}<small>total</small>`;
   document.getElementById('walkVerses').innerHTML = `${state.verses.length}<small>memorised</small>`;
+
+  const activeP = activePrayerCount();
+  const answeredP = answeredCountTotal();
+  const wpa = document.getElementById('walkPrayersActive');
+  const wpaa = document.getElementById('walkPrayersAnswered');
+  if (wpa) wpa.innerHTML = `${activeP}<small>active</small>`;
+  if (wpaa) wpaa.innerHTML = `${answeredP}<small>answered</small>`;
 
   document.getElementById('walkIdentity').textContent = computeIdentityLine();
 
@@ -1675,6 +2122,9 @@ function switchTo(name) {
     if (name === 'entry-detail') {
       const journalTab = document.querySelector('.tab[data-screen="journal"]');
       if (journalTab) journalTab.classList.add('active');
+    } else if (name === 'prayer-detail') {
+      const prayerTab = document.querySelector('.tab[data-screen="prayer"]');
+      if (prayerTab) prayerTab.classList.add('active');
     } else {
       const homeTab = document.querySelector('.tab[data-screen="home"]');
       if (['home','devotion','memorise','session','review','verse-detail'].includes(name) && homeTab)
@@ -1770,6 +2220,13 @@ window.App = {
 
   // Journal
   viewEntry, deleteEntry,
+
+  // Prayer
+  openAddPrayerModal, closeAddPrayerModal, savePrayer,
+  tapPrayed, viewPrayer,
+  openAnswerPrayerModal, closeAnswerPrayerModal, confirmAnswer,
+  archivePrayer, reactivatePrayer, deletePrayer,
+  toggleAllAnswered,
 
   // Misc
   closeReward, requestNotificationPermission
